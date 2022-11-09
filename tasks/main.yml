@@ -1,0 +1,42 @@
+---
+- name: include lihas_common
+  ansible.builtin.include_role:
+    name: lihas_common
+  when: role_done_lihas_common is not defined
+- name: apt_update init
+  ansible.builtin.set_fact:
+    apt_update: apt_update | default(false)
+- name: extrepo enable docker-ce
+  ansible.builtin.command:
+    cmd: /usr/bin/extrepo enable docker-ce
+  changed_when: false
+  register: result
+  become: "{{ lihas_become }}"
+- name: set_apt_update
+  ansible.builtin.set_fact:
+    apt_update: true
+  when: '"repository already existed" not in result.stdout'
+  become: "{{ lihas_become }}"
+- name: run apt update
+  ansible.builtin.apt:
+    update_cache: true
+  when: apt_update
+- name: install docker
+  ansible.builtin.apt:
+    name:
+      - 'docker-ce'
+      - 'virtualenv'
+      - 'python3-pip'
+      - 'python3-dev'
+      - 'libffi-dev'
+      - 'libssl-dev'
+- name: Install docker-compose
+  ansible.builtin.pip:
+    name: docker-compose
+    virtualenv: /opt/docker-compose/venv
+- name: Link docker-compose
+  ansible.builtin.file:
+    path: "/usr/local/bin/docker-compose"
+    src: "/opt/docker-compose/venv/bin/docker-compose"
+    state: "link"
+...
